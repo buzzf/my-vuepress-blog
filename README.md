@@ -20,13 +20,5 @@ yarn dev   # development
 yarn build # production
 ```
 
-## Author
 
-👤 **Billyyyyy3320**
 
-- Website: [billyyyyy3320.com](https://billyyyyy3320.com)
-- Github: [@newsbielt703](https://github.com/newsbielt703)
-
----
-
-_This README was generated with ❤️ by [readme-md-generator](https://github.com/kefranabg/readme-md-generator)_

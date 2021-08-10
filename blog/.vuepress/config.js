@@ -1,5 +1,5 @@
 module.exports = {
-  title: 'VuePress Blog Example',
+  title: "zhuzongfa's Blog",
   description: 'A blog powered by VuePress',
   theme: '@vuepress/theme-blog', // OR shortcut: @vuepress/blog
   themeConfig: {
@@ -31,16 +31,16 @@ module.exports = {
       contact: [
         {
           type: "github",
-          link: "https://github.com/newsbielt703"
+          link: "https://github.com/buzzf"
         },
         {
           type: "mail",
-          link: "mailto:newsbielt703@gmail.com"
+          link: "mailto:zhuzongfa558@163.com"
         }
       ],
       copyright: [
         {
-          text: "Billy Chin © 2020",
+          text: "zhuzongfa © 2021",
           link: ""
         }
       ]

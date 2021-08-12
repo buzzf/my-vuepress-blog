@@ -40,7 +40,7 @@ notebook的字体就改为微软雅黑了。当然还可以加其他的样式优
 
 ### 四、*nbextensions* 插件
 
-notebook插件可以用于增强用户体验并提供多种个性化技术。使用 *nbextensions* 库可以用来安装所有必需的小部件（这一次，我建议您首先通过终端安装软件包，然后打开Jupyter笔记本）。该库利用不同的Javascript模型来丰富笔记本前端。
+notebook插件可以用于增强用户体验并提供多种个性化技术。使用 *nbextensions* 库可以用来安装所有必需的小部件。该库利用不同的Javascript模型来丰富笔记本前端。
 
 ```python
 ! pip install jupyter_contrib_nbextensions

@@ -1,12 +1,11 @@
-```
+---
 title: jupyter notebook的美化
 date: 2021-8-12
 tags: 
   - jupyter notebook
 author: zhuzongfa
 location: Shanghai 
-```
-
+---
 
 
 ### 一、背景

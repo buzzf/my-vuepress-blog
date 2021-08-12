@@ -14,5 +14,8 @@
   "devDependencies": {
     "@vuepress/theme-blog": "^2.3.2",
     "vuepress": "^1.6.0"
+  },
+  "dependencies": {
+    "vuepress-plugin-latex": "^0.1.3"
   }
 }

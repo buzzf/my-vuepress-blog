@@ -9,7 +9,7 @@ author: zhuzongfa
 location: Shanghai 
 ---
 
-上一篇文章中，我们讲了如何用查词典的方法对中文语句分词，但这种方式不能百分百地解决中文分词问题，比如对于未登录词（在已有的词典中，或者训练语料里面没有出现过的词），无法用查词典的方式来切分，这时候可以用隐马尔可夫模型（HMM）来实现。在实际应用中，一般也是将词典匹配分词作为初分手段，再利用其他方法提高准确率。
+上一篇文章中，我们讲述了如何用查词典的方法对中文语句分词，但这种方式不能百分百地解决中文分词问题，比如对于未登录词（在已有的词典中，或者训练语料里面没有出现过的词），无法用查词典的方式来切分，这时候可以用隐马尔可夫模型（HMM）来实现。在实际应用中，一般也是将词典匹配分词作为初分手段，再利用其他方法提高准确率。
 
 <br/>
 
@@ -128,9 +128,7 @@ $$
 
 **代码实现1：**
 
-用HMM模型来实现中文分词，状态值集合有四种，分别是 s, b, m, e；观测值集合，即所有汉子；转移状态集合
-
-有`['ss', 'sb', 'bm', 'be', 'mm', 'me', 'es', 'eb']`, 其他组合都为0，即不可能的情况，比如`bs, ms`这些状态不可能转移。这里从jieba分词的github下载了一份字典库`dict.txt.small`，需要的朋友可以去官方github下载。我们先看看该词典的格式
+用HMM模型来实现中文分词，状态值集合有四种，分别是 s, b, m, e；观测值集合，即所有汉子；转移状态集合有`['ss', 'sb', 'bm', 'be', 'mm', 'me', 'es', 'eb']`, 其他组合都为0，即不可能的情况，比如`bs, ms`这些状态不可能转移。这里从jieba分词的github下载了一份字典库`dict.txt.small`，需要的朋友可以去官方github下载。我们先看看该词典的格式
 
 ```shell
 [zhuzf@localhost test]$ head -n 5 dict.txt.small 
@@ -163,7 +161,16 @@ with open('data/dict.txt.small', encoding='utf-8') as f:
             hmm_model['m'][m] += int(lines[1])
 ```
 
-转移概率，根据结巴分词的状态转移矩阵`prob_trans.p`得到， value值为概率对数
+**初始概率**，第一个词只可能是b或者s
+
+```python
+start_p={'b': -0.26268660809250016,
+ 'e': -3.14e+100,
+ 'm': -3.14e+100,
+ 's': -1.4652633398537678}
+```
+
+**转移概率**，根据结巴分词的状态转移矩阵`prob_trans.p`得到， value值为概率对数
 
 ```python
 P={'B': {'E': -0.510825623765990, 'M': -0.916290731874155},
@@ -194,39 +201,42 @@ output
 
 ![分词9.png](https://i.loli.net/2021/08/16/1RUY85rnX3T4iyC.png)
 
-viterbi算法的核心就是，计算如上图序列中每个时刻（此处为token）的最大概率路径，因为每个词都有可能是sbme中的一个，可以减少计算量。比如具有n个词的输入序列，所有可能路径有$4^{n}$条，穷举法也可以得到所有路径中概率最大的一条，但是如果隐状态可能取值的个数m太大，$m^{n}$会变得非常大，计算量太大。
+viterbi算法的核心就是，计算如上图序列中每个时刻（此处为token）的最大概率路径，因为每个词都有可能是sbme中的一个，可以减少计算量。比如具有n个词的输入序列，所有可能路径有$4^{n}$条，穷举法也可以得到所有路径中概率最大的一条，但是如果隐状态可能取值的个数m太大的话，$m^{n}$会变得非常大，从而导致计算量太大。
 
 ```python
-def viterbi(nodes, trans):
-    paths = nodes[0]  # 初始状态
+def viterbi(start_p, nodes, trans):
+    # paths以字典的方式缓存状态序列，以及概率值，初始位置只有start_p
+    paths = start_p  
+    # 从第二个词开始计算可能的最大概率路径
     for l in range(1, len(nodes)): 
-        paths_ = paths 
+        paths_ = paths # paths_缓存上一刻的状态
+        print(paths_)
         paths = {}
-        for i in nodes[l]:
-            nows = {}
-            for j in paths_:
-                if j[-1]+i in trans:
+        # 在l时刻，即第l个词的位置，分别对s,b,m,e四种状态值分析,计算在该状态值中最大概率路径，并保存到缓存paths中
+        for i in nodes[l]: 
+            nows = {} # 当前时刻状态值为i的所有可能路径缓存
+            # j为所有之前时刻缓存的路径
+            for j in paths_: 
+                # j[-1]为j路径最后一个状态值，比如j为'bess'，判断s+i是否是可能组合，比如se就不可能
+                if j[-1]+i in trans:  
+                    # l时刻下状态值i的路径概率 = 之前路径概率 + token到i的发射概率 + j[-1]i的转移概率 
                     nows[j+i] = paths_[j]+nodes[l][i]+trans[j[-1]+i]
-
-            nows_values_list = list(nows.values())
-            k = nows_values_list.index(max(nows_values_list))
-
-            nows_keys_list = list(nows.keys())
-            paths[nows_keys_list[k]] = nows_values_list[k]
-
-    paths_values_list = list(paths.values())
-    paths_keys_list = list(paths.keys())
-
-    return paths_keys_list[paths_values_list.index(max(paths_values_list))]
+            # 选取nows中概率最大的路径
+            prob_i, path_i = max((v, k) for k,v in nows.items())
+            paths[path_i] = prob_i
+    print(paths)
+    # 求出最后一个字哪一种状态的对应概率最大，最后一个字只可能是两种情况：e(结尾)和s(独立词)
+    prob, states = max((v, k) for k,v in paths.items() if k[-1] in 'es')
+    return prob, states
 ```
 
 HMM模型，对输入句子做分词
 
 ```python
 def hmm_cut(s):
-    nodes = [{i: log(j[t]+1)-log_total[i]
-                for i, j in hmm_model.items()} for t in s]
-    tags = viterbi(nodes, trans)
+    # nodes 为输入语句s中每个token分别为sbme的概率
+    nodes = [{i: log(j[t]+1)-log_total[i] for i, j in hmm_model.items()} for t in s]
+    _, tags = viterbi(start_p, nodes, trans)
     print(tags)
     words = [s[0]]
     for i in range(1, len(s)):
@@ -241,14 +251,32 @@ def hmm_cut(s):
 
 ```python
 text = '华为手机深得大家的喜欢'
-print' '.join(hmm_cut(text))）
+print(' '.join(hmm_cut(text)))
 # '华为 手机 深得 大家 的 喜欢'
 text = '王五的老师经常夸奖他'
 print(' '.join(hmm_cut(text)))
 # '王五 的 老师 经常 夸奖 他'
 ```
 
-可见对于未登录词王五，HMM模型可以发现这是个人名，分词时组合在一起，而查字典方法做不到。
+以第一个语句为例，我们把每个时刻保存的paths打印出来看一下
+
+```shell
+0: {'b': -0.26268660809250016, 'e': -3.14e+100, 'm': -3.14e+100, 's': -1.4652633398537678}
+1: {'ss': -6.7477507587683565, 'sb': -8.514824192919416, 'bm': -7.803021856684376, 'be': -5.779768469237251}
+2: {'bes': -13.546372927012078, 'beb': -12.721481505265722, 'bmm': -16.329054443981185, 'bme': -14.38750591207887}
+3: {'bess': -22.58204745531191, 'besb': -20.100674738295005, 'bebm': -20.053773324661236, 'bebe': -19.39785648454214}
+4: {'bebes': -28.147928301644228, 'bebeb': -26.84139484673273, 'besbm': -29.56559469156299, 'bebme': -28.614871482566265}
+5: {'bebess': -34.21920088939125, 'bebesb': -35.64550863881571, 'bebebm': -33.966633148962686, 'bebebe': -33.14651295553467}
+6: {'bebebes': -39.29135543196375, 'bebebeb': -38.32672117128855, 'bebebmm': -38.95179717057812, 'bebebme': -39.73898048704186}
+7: {'bebebess': -46.54991062378507, 'bebebesb': -46.739964735908735, 'bebebebm': -44.26298344994734, 'bebebebe': -43.90148032305975}
+8: {'bebebebes': -46.94960190563267, 'bebebebeb': -52.88266343174185, 'bebebebmm': -52.64274104579346, 'bebebebme': -51.34076405809046}
+9: {'bebebebess': -55.923380851692144, 'bebebebesb': -55.24166000635461, 'bebebebebm': -62.67816509870802, 'bebebebmme': -61.51714578556312}
+10: {'bebebebesss': -66.66337116442051, 'bebebebessb': -64.60666567893038, 'bebebebesbm': -65.49347468402344, 'bebebebesbe': -63.772287447683404}
+tags:  bebebebesbe
+华为 手机 深得 大家 的 喜欢
+```
+
+可见对于未登录词，王五，HMM模型可以发现这是个人名，分词时组合在一起，而查字典方法做不到。
 
 <br/>
 

@@ -233,7 +233,7 @@ def hmm_cut(s):
 
 测试
 
-```
+```python
 text = '华为手机深得大家的喜欢'
 print' '.join(hmm_cut(text))）
 # '华为 手机 深得 大家 的 喜欢'

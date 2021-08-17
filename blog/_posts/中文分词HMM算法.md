@@ -126,6 +126,8 @@ $$
 
 ### 代码实现
 
+**代码实现1：**
+
 用HMM模型来实现中文分词，状态值集合有四种，分别是 s, b, m, e；观测值集合，即所有汉子；转移状态集合
 
 有`['ss', 'sb', 'bm', 'be', 'mm', 'me', 'es', 'eb']`, 其他组合都为0，即不可能的情况，比如`bs, ms`这些状态不可能转移。这里从jieba分词的github下载了一份字典库`dict.txt.small`，需要的朋友可以去官方github下载。我们先看看该词典的格式
@@ -243,6 +245,90 @@ print(' '.join(hmm_cut(text)))
 ```
 
 可见对于未登录词，王五HMM模型可以发现这是个人名，分词时组合在一起，而查字典方法做不到。
+
+<br/>
+
+**代码实现2**
+
+以下是结巴分词的代码,其实和上面差不多：
+
+```python
+hmm_model = {i: Counter(i) for i in 'SBME'}
+with open('data/dict.txt.small', encoding='utf-8') as f:
+    for line in f:
+        lines = line.strip('\n').split(' ')
+        if len(lines[0]) == 1:
+            hmm_model['S'][lines[0]] += int(lines[1])
+        else:
+            hmm_model['B'][lines[0][0]] += int(lines[1])
+            hmm_model['E'][lines[0][-1]] += int(lines[1])
+        for m in lines[0][1:-1]:
+            hmm_model['M'][m] += int(lines[1])
+log_total = {i: log(sum(hmm_model[i].values())) for i in 'SBME'}
+# 转移矩阵
+trans_p={'B': {'E': -0.510825623765990, 'M': -0.916290731874155},
+ 'E': {'B': -0.5897149736854513, 'S': -0.8085250474669937},
+ 'M': {'E': -0.33344856811948514, 'M': -1.2603623820268226},
+ 'S': {'B': -0.7211965654669841, 'S': -0.6658631448798212}}
+# 发射矩阵
+emit_p = {i: {t: log(j[t]+1)-log_total[i] for t in j.keys()} for i, j in hmm_model.items()}
+# 初始概率
+start_p={'B': -0.26268660809250016,
+ 'E': -3.14e+100,
+ 'M': -3.14e+100,
+ 'S': -1.4652633398537678}
+# 状态转移集合，比如B状态前只可能是E或S状态
+PrevStatus = {
+    'B': 'ES',
+    'M': 'MB',
+    'S': 'SE',
+    'E': 'BM'
+}
+MIN_FLOAT = -3.14e100
+# HMM模型中文分词中，我们的输入是一个句子(也就是观察值序列)，输出是这个句子中每个字的状态值
+# HMM的解码问题
+def jieba_viterbi(obs, states, start_p, trans_p, emit_p):
+    V = [{}]  # 状态概率矩阵  
+    path = {}
+    for y in states:  # 初始化状态概率
+        V[0][y] = start_p[y] + emit_p[y].get(obs[0], MIN_FLOAT)
+        path[y] = [y] # 记录路径
+    for t in range(1, len(obs)):
+        V.append({})
+        newpath = {}
+        for y in states:
+            em_p = emit_p[y].get(obs[t], MIN_FLOAT)
+            # t时刻状态为y的最大概率(从t-1时刻中选择到达时刻t且状态为y的状态y0)
+            (prob, state) = max([(V[t - 1][y0] + trans_p[y0].get(y, MIN_FLOAT) + em_p, y0) for y0 in PrevStatus[y]])
+            V[t][y] = prob
+            newpath[y] = path[state] + [y] # 只保存概率最大的一种路径 
+        path = newpath 
+    # 求出最后一个字哪一种状态的对应概率最大，最后一个字只可能是两种情况：E(结尾)和S(独立词)  
+    (prob, state) = max((V[len(obs) - 1][y], y) for y in 'ES')
+
+    return (prob, path[state])
+
+def hmm_cut(s):
+    # viterbi算法得到sentence 的切分
+    prob, tags = jieba_viterbi(s, 'SBME', start_p, trans_p, emit_p)
+    print(tags)
+    words = [s[0]]
+    for i in range(1, len(s)):
+        if tags[i] in ['B', 'S']:
+            words.append(s[i])
+        else:
+            words[-1] += s[i]
+    return words
+```
+
+测试：
+
+```python
+text = '小明硕士毕业于中国科学院计算所'
+print(' '.join(hmm_cut(text)))
+# >> ['B', 'E', 'B', 'E', 'B', 'M', 'E', 'B', 'E', 'B', 'M', 'E', 'B', 'E', 'S']
+# >> '小明 硕士 毕业于 中国 科学院 计算 所'
+```
 
 <br/>
 

@@ -1,6 +1,6 @@
 ---
 title: jupyter notebook的美化
-date: 2021-8-12
+date: 2021-8-11
 tags: 
   - jupyter notebook
 author: zhuzongfa
